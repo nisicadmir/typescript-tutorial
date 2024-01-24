@@ -1,5 +1,6 @@
 import { Model, Schema, model } from 'mongoose';
-import { IUser } from './user.model';
+import { IUser, UserCreate } from './user.model';
+import { MongooseMixin } from '../mongoose';
 
 const IUserSchema = new Schema<IUser>(
   {
@@ -18,3 +19,5 @@ const IUserSchema = new Schema<IUser>(
 );
 
 export const UserModel: Model<IUser> = model('user', IUserSchema);
+
+export const userMixin = new MongooseMixin<IUser, UserCreate>(UserModel);

@@ -1,5 +1,3 @@
-import 'reflect-metadata';
-
 import bodyParser from 'body-parser';
 import express, { NextFunction, Request, Response } from 'express';
 import { ulid } from 'ulid';
@@ -8,10 +6,13 @@ import { ErrorCode } from './error-handler/error-code';
 import { ErrorException } from './error-handler/error-exception';
 import { errorHandler } from './error-handler/error-handler';
 import { dummyFunc } from './lib/dummy-lib';
+import { generateAuthToken } from './lib/jwt';
+import { comparePassword, passwordHash } from './lib/password-hash';
+import { authMiddleware } from './middlewares/auth-middleware';
 import { dummyMiddleware } from './middlewares/dummy-middleware';
 import { connect } from './models/mongoose';
-import { UserModel } from './models/user/user.db';
-import { UserCreate, UserCreateAPI } from './models/user/user.model';
+import { UserModel, userMixin } from './models/user/user.db';
+import { ISignInAPI, IUser, UserCreate, UserCreateAPI } from './models/user/user.model';
 
 const app = express();
 
@@ -52,22 +53,43 @@ app.get('/throw-async-await-error', async (req: Request, res: Response, next: Ne
 
 app.post('/sign-up', async (req: Request, res: Response, next: NextFunction) => {
   const data = req.body as UserCreateAPI;
-  console.log('data', data);
 
+  const hash = passwordHash(data.password);
   const userCreate: UserCreate = {
     _id: ulid(),
     name: data.name,
     email: data.email,
-    password: data.password,
+    password: hash,
   };
-  try {
-    const user = await UserModel.create(userCreate);
-    console.log('user', user);
-  } catch (error) {
-    console.log('error', error);
+  const user = await userMixin.create(userCreate);
+  console.log('user', user);
+
+  res.send('OK');
+});
+
+app.post('/sign-in', async (req: Request, res: Response, next: NextFunction) => {
+  const data = req.body as ISignInAPI;
+
+  const userExists: IUser | null = await UserModel.findOne({ email: data.email });
+  if (userExists === null) {
+    throw new ErrorException(ErrorCode.Unauthenticated);
   }
 
-  res.send('Something is broken in dummy func!');
+  console.log('userExists', userExists);
+
+  // validate the password
+  const validPassword = comparePassword(data.password, userExists.password);
+  if (!validPassword) {
+    throw new ErrorException(ErrorCode.Unauthenticated);
+  }
+
+  const token = generateAuthToken(userExists);
+
+  res.send({ token });
+});
+
+app.get('/protected-route', authMiddleware, async (req: Request, res: Response, next: NextFunction) => {
+  res.send('success');
 });
 
 app.use(errorHandler);

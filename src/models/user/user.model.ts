@@ -10,3 +10,8 @@ export interface IUser {
 
 export type UserCreate = Pick<IUser, '_id' | 'name' | 'email' | 'password'>;
 export type UserCreateAPI = Pick<IUser, 'name' | 'email' | 'password'>;
+
+export interface ISignInAPI {
+  email: string;
+  password: string;
+}

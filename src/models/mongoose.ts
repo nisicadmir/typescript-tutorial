@@ -1,4 +1,6 @@
-import mongoose, { Connection } from 'mongoose';
+import mongoose, { Connection, Model } from 'mongoose';
+import { ErrorException } from '../error-handler/error-exception';
+import { ErrorCode } from '../error-handler/error-code';
 
 let mongooseConnection: Connection | null = null;
 
@@ -27,5 +29,22 @@ export async function connect(): Promise<void> {
     }
   } catch (error) {
     console.log(`Error connecting to DB`, error);
+  }
+}
+
+export class MongooseMixin<T, TCreate> {
+  private model: Model<T>;
+  constructor(modelIn: Model<T>) {
+    this.model = modelIn;
+  }
+  // public async findOne(): Promise<T> {}
+
+  public async create(data: TCreate): Promise<T> {
+    try {
+      const user = await this.model.create(data);
+      return user;
+    } catch (error) {
+      throw new ErrorException(ErrorCode.MongoCreateError);
+    }
   }
 }
